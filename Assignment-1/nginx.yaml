@@ -1,0 +1,26 @@
+# playbook.yml
+- hosts: all
+  become: yes
+  tasks:
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Enable and start nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Enable UFW and allow HTTP
+      ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+
+    - name: Deploy simple HTML page
+      copy:
+        dest: /var/www/html/index.html
+        content: "<h1>Deployed via An sible</h1>"
