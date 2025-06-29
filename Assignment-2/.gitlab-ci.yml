@@ -1,0 +1,39 @@
+stages:
+  - build
+  - deploy
+  - test
+
+variables:
+  AWS_REGION: "us-east-1"
+  IMAGE_NAME: "my-app"
+  ECR_REPO_URI: "314146299830.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}"
+
+before_script:
+  - apk add --no-cache curl jq
+  - aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+  - aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+  - aws configure set region "$AWS_REGION"
+
+build:
+  stage: build
+  script:
+    - $(aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO_URI)
+    - docker build -t $IMAGE_NAME ./app
+    - docker tag $IMAGE_NAME:latest $ECR_REPO_URI:latest
+    - docker push $ECR_REPO_URI:latest
+
+deploy:
+  stage: deploy
+  script:
+    - cd infra
+    - terraform init
+    - terraform apply -auto-approve
+
+test:
+  stage: test
+  script:
+    - >
+      SERVICE_URL=$(aws apprunner list-services |
+      jq -r '.ServiceSummaryList[] | select(.ServiceName=="my-app-service") | .ServiceUrl')
+    - echo "Testing $SERVICE_URL"
+    - curl -f $SERVICE_URL || exit 1
