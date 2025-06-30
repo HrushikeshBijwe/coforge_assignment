@@ -1,0 +1,46 @@
+stages:
+  - build
+  - deploy
+  - test
+
+variables:
+  AWS_REGION: "us-east-1"
+  
+deploy:
+  stage: build
+  image: alpine:latest
+  
+  before_script:
+  # Install system dependencies
+  - apk update
+  - apk add --no-cache curl unzip bash less groff python3 py3-pip py3-virtualenv
+
+  # Verify installations
+  - python3 --version
+  - pip3 --version
+
+  # Install Terraform
+  - curl -O https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
+  - unzip terraform_1.6.6_linux_amd64.zip
+  - mv terraform /usr/local/bin/
+  - terraform version
+
+  # Set up virtual environment for AWS CLI
+  - python3 -m venv /tmp/venv
+  - . /tmp/venv/bin/activate
+  - pip install --upgrade pip
+  - pip install awscli
+  - apk add --no-cache ansible
+  - apk add --no-cache ansible openssh-client python3 py3-pip
+  - export PATH="/tmp/venv/bin:$PATH"
+  - aws --version
+  - aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+  - aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+  - aws configure set region "$AWS_REGION"
+
+  script: 
+    - echo "started"
+    - cd Assignment-1
+    - terraform init
+    - terraform plan
+    - terraform apply --auto-approve
