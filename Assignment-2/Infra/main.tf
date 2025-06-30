@@ -6,20 +6,57 @@ resource "aws_ecr_repository" "app_repo" {
   name = "my-app"
 }
 
-# IAM Role for App Runner to pull from ECR privately
+
+
+terraform {
+    backend "s3" {
+      bucket = "my-tf-assignment-bucket-1"
+      key = "app-state"
+      region = "us-east-1"
+    }
+}
+
+
 resource "aws_iam_role" "apprunner_role" {
   name = "AppRunnerECRAccessRole"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Action = "sts:AssumeRole",
+      Effect = "Allow",
       Principal = {
         Service = "build.apprunner.amazonaws.com"
       },
-      Effect = "Allow",
+      Action = "sts:AssumeRole"
     }]
   })
 }
+
+resource "aws_iam_policy" "apprunner_ecr_access" {
+  name        = "AppRunnerECRCustomAccess"
+  description = "Allow App Runner to pull images from ECR"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy_attachment" "ecr_access_1" {
+  name       = "AppRunnerECRAccess1"
+  roles      = [aws_iam_role.apprunner_role.name]
+  policy_arn = aws_iam_policy.apprunner_ecr_access.arn
+}
+
 
 resource "aws_iam_policy_attachment" "ecr_access" {
   name       = "AppRunnerECRAccess"
